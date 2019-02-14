@@ -10,6 +10,6 @@ runTokenizer input = do
 
 main :: IO ()
 main = do
-  --runTokenizer " 1 2 abc if "
+  runTokenizer " 1 2 abc if "
   runTokenizer "if True False "
   runTokenizer " "

@@ -15,8 +15,10 @@ tokenize :: String -> [Token]
 tokenize input = fromRight [] $ parse (many getToken) "" input 
 
 getToken :: Stream s m Char => ParsecT s u m Token
-getToken = let gaps = many $ char ' ' in 
-    try (gaps *> parseKeyWord)
+getToken =  
+    try (spaces *> parseKeyWord) <|>
+    try (spaces *> parseInteger) <|>
+    try (spaces *> parseIdent) 
 
 
 parseKeyWord :: Stream s m Char => ParsecT s u m Token
@@ -30,5 +32,17 @@ parseKeyWord = KeyWord <$> choice (try . string <$> keyWords)
                 "assert",    "del",       "global",    "not", "with",
                 "async",      "elif",       "if",         "or",         "yield"]
 
+bar :: String -> Int
+bar input = fst $ head $ (reads input)
 
-                
+
+
+parseInteger :: Stream s m Char => ParsecT s u m Token
+parseInteger = Number <$> (bar <$> (many1 digit))
+
+
+parseIdent :: Stream s m Char => ParsecT s u m Token
+parseIdent = Ident <$> do
+    res1 <- (string "_" <|> ((\x -> [x]) <$> letter))
+    res2 <- many (letter <|> digit <|> char '_')
+    return $ res1 ++ res2
