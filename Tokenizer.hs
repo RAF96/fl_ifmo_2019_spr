@@ -4,21 +4,31 @@ module Tokenizer where
 
 import Text.Parsec
 import Data.Either
+import Data.Char
+import Control.Applicative (some)
 
 
 data Token = Ident String
            | KeyWord String
-           | Number Int  -- Change Number type if you work with something other than Int
+           | NumberInt Int  -- Change Number type if you work with something other than Int
+           | NumberOther String  -- Change Number type if you work with something other than Int
            deriving (Show, Eq)
 
 tokenize :: String -> [Token]
 tokenize input = fromRight [] $ parse (many getToken) "" input 
 
+many1_spaces :: Stream s m Char => ParsecT s u m ()
+many1_spaces = do 
+    res <- many1 space
+    return ()
+
 getToken :: Stream s m Char => ParsecT s u m Token
-getToken =  
-    try (spaces *> parseKeyWord) <|>
-    try (spaces *> parseInteger) <|>
-    try (spaces *> parseIdent) 
+getToken = ( 
+            try (parseKeyWord) <|>
+            try (parseBinInteger) <|>
+            try (parseInteger) <|>
+            try (parseIdent)
+            ) <* (many1_spaces <|> eof)
 
 
 parseKeyWord :: Stream s m Char => ParsecT s u m Token
@@ -32,13 +42,24 @@ parseKeyWord = KeyWord <$> choice (try . string <$> keyWords)
                 "assert",    "del",       "global",    "not", "with",
                 "async",      "elif",       "if",         "or",         "yield"]
 
-bar :: String -> Int
-bar input = fst $ head $ (reads input)
+getInt :: Char -> Int 
+getInt x = Data.Char.digitToInt x
+
+getInteger :: String -> Int
+getInteger = foldl (\y x -> y * 10 + (getInt x)) 0
 
 
 
 parseInteger :: Stream s m Char => ParsecT s u m Token
-parseInteger = Number <$> (bar <$> (many1 digit))
+parseInteger = NumberInt <$> (getInteger <$> (many1 digit))
+
+
+parseBinInteger :: Stream s m Char => ParsecT s u m Token
+parseBinInteger = NumberOther <$> do
+    res1 <- (string "0")
+    res2 <- (string "b" <|> string "B")
+    res3 <- many (char '0' <|> char '1' <|> char '_')
+    return $ res1 ++ res2 ++ res3
 
 
 parseIdent :: Stream s m Char => ParsecT s u m Token
