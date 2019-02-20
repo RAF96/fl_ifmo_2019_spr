@@ -10,5 +10,9 @@ runTokenizer input = do
 
 main :: IO ()
 main = do
-  runTokenizer " 1 2 abc if "
+  runTokenizer "1 2 abc if "
   runTokenizer " "
+  runTokenizer "0b01_01"
+  runTokenizer "0b01_01 hi"
+  runTokenizer "0b01_01hi"
+

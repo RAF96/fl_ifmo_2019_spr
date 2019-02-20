@@ -1,7 +1,7 @@
 module Combinators where
 
 import qualified Prelude
-import Prelude hiding (fail, fmap, (<*>), (>>=))
+import Prelude hiding (seq, fail, fmap, (<*>), (>>=))
 
 
 -- Parsing result is some payload and a suffix of the input which is yet to be parsed
@@ -96,9 +96,11 @@ keywords kws = Parser $ \s -> containsInTree root s ""
         root = foldr (\word acc -> add_word acc word) (Tree Nothing) kws
 
         containsInTree :: Tree Char -> String -> String -> Maybe (String, String)
-        containsInTree (Tree Nothing) (' ': xs) acc = Nothing 
+        containsInTree (Tree Nothing) _ _ = Nothing 
         containsInTree (Tree (Just (False, list))) (' ': xs) acc = Nothing 
         containsInTree (Tree (Just (True, list))) tail'@(' ': xs) acc = Just $ (tail', acc)
+        containsInTree (Tree (Just (False, list))) [] acc = Nothing 
+        containsInTree (Tree (Just (True, list))) [] acc = Just $ ([], acc)
 
         containsInTree tree (x : xs) acc = case get tree x of
             Nothing -> Nothing
@@ -116,6 +118,20 @@ token t = Parser $ \s ->
 char :: Char -> Parser String Char
 char = token
 
+space = char ' '
+
+digit = foldr (\x acc -> acc <|> char x) (char '0') "0123456789"
+
+letter = foldr (\x acc -> acc <|> char x) (char 'a') (['a'..'z'] ++ ['A' .. 'Z'])
+
+string :: Eq token => [token] -> Parser [token] [token]
+string [] =  success []
+string (x:xs) = Parser $ \s ->
+  case s of
+    (x' : xs') | x == x' -> case runParser (string xs) xs' of
+        Nothing -> Nothing
+        Just (str, ok) -> Just (str, x:ok)
+    _ -> Nothing
 
 
 instance Functor (Parser str) where 
