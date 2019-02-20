@@ -1,6 +1,8 @@
 module Combinators where
 
-import Prelude hiding (fail, fmap)
+import qualified Prelude
+import Prelude hiding (fail, fmap, (<*>), (>>=))
+
 
 -- Parsing result is some payload and a suffix of the input which is yet to be parsed
 newtype Parser str ok = Parser { runParser :: str -> Maybe (str, ok) }
@@ -25,15 +27,29 @@ p <|> q = Parser $ \s ->
 -- If the first does not succeed then the second one is never tried
 -- The result is collected into a pair
 seq :: Parser str a -> Parser str b -> Parser str (a, b)
-p `seq` q = undefined
+p `seq` q = Parser $ \s -> 
+    case runParser p s of
+        Nothing -> Nothing  
+        Just (str1, ok1) -> case runParser q str1 of
+            Nothing -> Nothing
+            Just (str2, ok2) -> Just (str2, (ok1, ok2))
 
 -- Monadic sequence combinator
 (>>=) :: Parser str a -> (a -> Parser str b) -> Parser str b
-p >>= q = undefined
+p >>= q = Parser $ \s -> 
+    case runParser p s of 
+        Nothing -> Nothing 
+        Just (str1, ok1) -> runParser (q ok1) str1
+
 
 -- Applicative sequence combinator
 (<*>) :: Parser str (a -> b) -> Parser str a -> Parser str b
-p <*> q = undefined
+p <*> q = Parser $ \s ->
+    case runParser p s of 
+        Nothing -> Nothing
+        Just (str1, ok1) -> case runParser q str1 of
+            Nothing -> Nothing
+            Just (str2, ok2) -> Just(str2, ok1 ok2) 
 
 -- Applies a function to the parsing result, if parser succeedes
 fmap :: (a -> b) -> Parser str a -> Parser str b
@@ -44,15 +60,50 @@ fmap f p = Parser $ \s ->
 
 -- Applies a parser once or more times
 some :: Parser str a -> Parser str [a]
-some p = undefined
+some p = ((:) <$> p) <*> many p 
+
 
 -- Applies a parser zero or more times
 many :: Parser str a -> Parser str [a]
-many p = undefined
+many p = some p <|> pure []
+
+
+
+newtype Tree a = Tree (Maybe (Bool, [(a, Tree a)])) deriving Show
+
+add_word :: Eq a => Tree a -> [a] -> Tree a
+add_word _ [] = Tree $ Just (True, [])
+add_word root (x:xs) = case root of
+    Tree Nothing -> Tree $ Just (False, [(x, add_word (Tree Nothing) xs)])
+    Tree (Just (terminal, list)) -> case lookup x list of
+        Nothing -> Tree $ Just (terminal, (:) (x, add_word (Tree Nothing) xs) list)
+        Just tree -> Tree $ Just (terminal, foo <$> list)
+            where  
+                foo (a, tree) = 
+                    if a == x then (a, add_word tree xs)
+                    else (a, tree)
+
+
+-- get :: Eq a => Tree a -> a -> Maybe (Tree a)
+get (Tree Nothing) _ = Nothing
+get (Tree (Just (terminal, list))) x = lookup x list
+    
 
 -- Parses keywords 
 keywords :: [String] -> Parser String String
-keywords kws = undefined
+keywords kws = Parser $ \s -> containsInTree root s ""
+    where
+        root = foldr (\word acc -> add_word acc word) (Tree Nothing) kws
+
+        containsInTree :: Tree Char -> String -> String -> Maybe (String, String)
+        containsInTree (Tree Nothing) (' ': xs) acc = Nothing 
+        containsInTree (Tree (Just (False, list))) (' ': xs) acc = Nothing 
+        containsInTree (Tree (Just (True, list))) tail'@(' ': xs) acc = Just $ (tail', acc)
+
+        containsInTree tree (x : xs) acc = case get tree x of
+            Nothing -> Nothing
+            Just node -> containsInTree node xs (acc ++ [x])
+
 
 -- Checks if the first element of the input is the given token
 token :: Eq token => token -> Parser [token] token
@@ -64,3 +115,18 @@ token t = Parser $ \s ->
 -- Checks if the first character of the string is the one given
 char :: Char -> Parser String Char
 char = token
+
+
+
+instance Functor (Parser str) where 
+    fmap = fmap
+
+
+instance Applicative (Parser str) where
+    pure = return 
+    (<*>) = (<*>)
+
+
+instance Monad (Parser str) where
+    return = success
+    (>>=) = (>>=) 
