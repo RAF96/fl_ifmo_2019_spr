@@ -8,7 +8,7 @@ import Data.Char
 
 data Token = Ident String
            | KeyWord String
-           | NumberInt Int  -- Change Number type if you work with something other than Int
+           | NumberInt Integer  -- Change Number type if you work with something other than Int
            | NumberOther String  -- Change Number type if you work with something other than Int
            deriving (Show, Eq)
 
@@ -57,14 +57,14 @@ parseBinInteger = do
     return $ res1 ++ res2 ++ res3
 
 
-getInt :: Char -> Int 
+getInt :: Char -> Int
 getInt x = Data.Char.digitToInt x
 
-getInteger :: String -> Int
-getInteger = foldl (\y x -> y * 10 + (getInt x)) 0
+getInteger :: String -> Integer
+getInteger = foldl (\y x -> y * 10 + (toInteger $ getInt x)) 0
 
 
-parseInteger :: Parser String Int 
+parseInteger :: Parser String Integer
 parseInteger = (getInteger <$> (some digit))
 
 

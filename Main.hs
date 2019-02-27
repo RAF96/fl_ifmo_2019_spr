@@ -15,4 +15,5 @@ main = do
   runTokenizer "0b01_01"
   runTokenizer "0b01_01 hi"
   runTokenizer "0b01_01hi"
+  runTokenizer "12345678901234567890"
 
