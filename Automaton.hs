@@ -27,16 +27,16 @@ data Automaton s q = Automaton { sigma     :: Set s
 -- Pick appropriate types for s and q
 
 parseAutomaton :: String -> Maybe (Automaton String String)
-parseAutomaton input = case runParser foo input of
+parseAutomaton input = case runParser parseAutomaton' input of
     Nothing -> Nothing
     Just (str, value) -> Just value
 
 
-bar x = case x of 
+pairFirstTwoElement x = case x of 
     (v1:v2:v3:l) -> ((v1,v2), Just v3)
 
-foo :: Parser String (Automaton String String)
-foo = do
+parseAutomaton' :: Parser String (Automaton String String)
+parseAutomaton' = do
         sigma' <- parseSigma 
         let sigma = Set.fromList sigma'
         states'  <- parseStates 
@@ -46,34 +46,60 @@ foo = do
         termState'  <- parseTermState
         let termState = Set.fromList termState'
         delta' <- parseDelta 
-        let delta'' = bar <$> delta'
+        let delta'' = pairFirstTwoElement <$> delta'
         let delta = Map.fromList delta'' 
-        return $ Automaton sigma states initState termState delta
+        if (null sigma) ||  
+           (check2 states [initState]) ||
+           (check2 states termState') || 
+           (check2 states ((\(a:b:c:l) -> a) <$> delta')) ||
+           (check2 sigma ((\(a:b:c:l) -> b) <$> delta'))
+        then 
+            fail
+            --return $ Automaton sigma states initState termState delta
+        else
+            return $ Automaton sigma states initState termState delta
+
+check2 :: Set String -> [String] -> Bool
+check2 first second = foldr (\elem acc -> Set.member elem first || acc) False second
 
 
 parseList :: Parser String elem -> Parser String a -> 
-             Parser String b -> Parser String c -> Int -> Parser String [elem]
-parseList elem delim lbr rbr minimumNumberElems = do
-    lbr
-    many_spaces
-    head' <- many (elem <* many_spaces <*
-                  delim <* many_spaces)
-    last_element <- elem
-    (many_spaces <* rbr)
-    if length head' + 1 > minimumNumberElems then
-        return $ head' ++ [last_element]
-    else
-        fail 
+             Parser String b -> Parser String c -> (Int -> Bool) -> 
+             Parser String [elem]
+parseList elem delim lbr rbr checkNumberElems = not_empty <|> empty
+    where 
+        not_empty = do
+            lbr
+            many_spaces
+            head' <- many (elem <* many_spaces <*
+                          delim <* many_spaces)
+            last_element <- elem
+            (many_spaces <* rbr)
+            if checkNumberElems (length head' + 1) then
+                return $ head' ++ [last_element]
+            else
+                fail
+        empty = do
+            lbr
+            many_spaces
+            rbr
+            if checkNumberElems 0 then
+                return $ [] 
+            else
+                fail
 
 lbr = char '<'
 rbr = char '>'
 delim = char ','
 
-parseSigma = parseList (some letter) delim lbr rbr 0
-parseStates = parseList (some letter) delim lbr rbr 0
-parseInitState = parseList (some letter) delim lbr rbr 0
-parseTermState = parseList (some letter) delim lbr rbr 0
+parseOneLetter = (some letter)
+parseOneState = (some letter)
 
-parseOneDelta = parseList (some letter) delim (char '(') (char ')') 0
-parseDelta = parseList (parseOneDelta) delim lbr rbr 0
+parseSigma = parseList (parseOneLetter) delim lbr rbr ((<=) 0)
+parseStates = parseList (parseOneState) delim lbr rbr ((<=) 0)
+parseInitState = parseList (parseOneState) delim lbr rbr ((==) 1)
+parseTermState = parseList (parseOneState) delim lbr rbr ((<=) 0) 
+
+parseOneDelta = parseList (parseOneState) delim (char '(') (char ')') ((==) 3)
+parseDelta = parseList (parseOneDelta) delim lbr rbr ((<=) 0) 
 
