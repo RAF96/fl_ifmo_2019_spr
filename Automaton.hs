@@ -52,6 +52,7 @@ parseAutomaton' = do
            (check2 states [initState]) ||
            (check2 states termState') || 
            (check2 states ((\(a:b:c:l) -> a) <$> delta')) ||
+           (check2 states ((\(a:b:c:l) -> c) <$> delta')) ||
            (check2 sigma ((\(a:b:c:l) -> b) <$> delta'))
         then 
             fail
@@ -60,7 +61,7 @@ parseAutomaton' = do
             return $ Automaton sigma states initState termState delta
 
 check2 :: Set String -> [String] -> Bool
-check2 first second = foldr (\elem acc -> Set.member elem first || acc) False second
+check2 first second = foldr (\elem acc -> (not $ Set.member elem first) || acc) False second
 
 
 parseList :: Parser String elem -> Parser String a -> 
