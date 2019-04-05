@@ -122,6 +122,16 @@ space = char ' '
 digit :: Parser Char Char
 digit = satisfy (isDigit)
 
+digitInt :: Parser Char Integer
+digitInt  = toInteger <$> (digitToInt <$> digit)
+
+digits :: Parser Char [Char]
+digits = some digit
+
+digitsInt :: Parser Char Integer
+digitsInt = (foldl (\acc x -> acc * 10 + x ) 0) <$> (some digitInt)
+
+
 letter :: Parser Char Char
 letter = satisfy (isLetter)
 
@@ -137,3 +147,9 @@ many1_spaces :: Parser Char ()
 many1_spaces = do
     res <- some space
     return ()
+
+eof :: Parser Char ()
+eof = Parser $ \stream -> if streamData stream == []
+    then Right (stream, ())
+    else Left $ eofException $ streamPosition stream
+
