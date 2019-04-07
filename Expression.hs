@@ -47,37 +47,66 @@ pAnd = do
     return $ BinOp Conj x y
     <|> pEq
 
-generatePEq sep op = do
+pEq = do
     x <- pPlus
     many_spaces
-    string sep
+    op <- pEq''
     many_spaces
     y <- pPlus
     return $ BinOp op x y
 
-pEq = pEq' <|> pNeq <|> pLe <|> pLe <|> pLt <|> pGe <|> pGt <|> pPlus
-pEq' = generatePEq "==" Eq
-pNeq = generatePEq "!=" Neq
-pLe = generatePEq "<=" Le
-pLt = generatePEq "<" Lt
-pGe = generatePEq ">=" Ge
-pGt = generatePEq ">" Gt
+pEq'' = pEq' <|> pNeq <|> pLe <|> pLe <|> pLt <|> pGe <|> pGt
+pEq' = string "=="  *> pure Eq
+pNeq = string "!=" *> pure Neq
+pLe = string  "<=" *> pure Le
+pLt = string "<" *> pure Lt
+pGe = string ">=" *> pure Ge
+pGt = string ">" *> pure Gt
 
 
-generatePPlus sep op = do
-    x <- pMult
-    y <- many $ many_spaces *> string sep *> many_spaces *> pMult
-    let res = foldl (\acc x -> BinOp op acc x) x y
+pPlus = do
+    x <- pMul
+    y <- many $ Prelude.fmap flip (BinOp <$> (many_spaces *> pPlus'')) <*> (many_spaces *> pMul)
+    let res = foldl (\acc x -> x acc) x y
     return $ res
 
-pPlus = pPlus' <|> pMinus
+pPlus'' = pPlus' <|> pMinus
+pPlus' = string "+" *> pure Sum
+pMinus = string "-" *> pure Minus
 
-pPlus' = generatePPlus "+" Sum
-pMinus = generatePPlus "-" Minus
+
+pMul = do
+    x <- pPow
+    y <- many $ Prelude.fmap flip (BinOp <$> (many_spaces *> pMul'')) <*> (many_spaces *> pPow)
+    let res = foldl (\acc x -> x acc) x y
+    return $ res
 
 
-pMult = pExp
-pExp = pDigit
+pMul'' = pMul' <|> pDiv
+pMul' = string "*" *> pure Mul
+pDiv = string "/" *> pure Div
+
+
+pPow = do
+    x <- pExp
+    many_spaces
+    op <- string "^"
+    many_spaces
+    y <- pPow
+    return $ BinOp Conj x y
+    <|> pExp
+
+
+
+
+pExp = do
+    string "("
+    many_spaces
+    x <- pStart
+    many_spaces
+    string ")"
+    return x
+    <|> pDigit
 
 pDigit :: Parser Char (EAst Integer)
 pDigit = Primary <$> digitsInt
