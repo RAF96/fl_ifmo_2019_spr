@@ -16,7 +16,45 @@ data Assoc = LAssoc -- left associativity
 expression :: [(Assoc, [(Parser str b, a -> a -> a)])] ->
               Parser str a ->
               Parser str a
-expression ops primary = undefined
+--expression ops primary = undefined
+expression ops primary = foldr (\(assoc, l) acc -> step assoc l acc) primary ops
+    where
+        step:: Assoc -> [(Parser str b, a -> a -> a)] -> Parser str a -> Parser str a
+        step assoc = case assoc of
+            LAssoc -> stepLAssoc
+            RAssoc -> stepRAssoc
+            NAssoc -> stepNAssoc
+
+        stepLAssoc :: [(Parser str b, a -> a -> a)] -> Parser str a -> Parser str a
+        stepLAssoc l primary = do
+            first <- primary
+            let l' = Prelude.fmap (\(parser, op) -> parser *> pure op) l
+            let l'' = foldr1 (\parser acc -> parser <|> acc) l'
+            second <- many $ Prelude.fmap flip l'' <*> primary
+            -- return second
+            return $ foldl (\acc elem -> elem acc) first second
+
+        stepRAssoc :: [(Parser str b, a -> a -> a)] -> Parser str a -> Parser str a
+        stepRAssoc l primary = do
+            first <- primary
+            let l' = Prelude.fmap (\(parser, op) -> parser *> pure op) l
+            let l'' = foldr1 (\parser acc -> parser <|> acc) l'
+            op <- l''
+            second <- stepRAssoc l primary
+            return $ op first second
+            <|> primary
+
+        stepNAssoc :: [(Parser str b, a -> a -> a)] -> Parser str a -> Parser str a
+        stepNAssoc l primary = do
+            first <- primary
+            let l' = Prelude.fmap (\(parser, op) -> parser *> pure op) l
+            let l'' = foldr1 (\parser acc -> parser <|> acc) l'
+            op <- l''
+            second <- primary
+            return $ op first second
+            <|> primary
+
+
 
 runParserUntilEof :: Parser str ok -> [str] -> Either ParseError ok
 runParserUntilEof p inp =

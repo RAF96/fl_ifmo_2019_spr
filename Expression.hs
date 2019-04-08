@@ -23,16 +23,62 @@ data Operator = Pow
 data EAst a = BinOp Operator (EAst a) (EAst a)
             | Primary a
 
+
+listOfOperatorsForEAst =
+    [
+      (LAssoc, [ (string "||", BinOp Disj)]),
+      (RAssoc, [ (string "&&", BinOp Conj)]),
+      (NAssoc, [ (string "==", BinOp Eq),
+                 (string "!=", BinOp Neq),
+                 (string "<", BinOp Lt),
+                 (string ">", BinOp Gt),
+                 (string "<=", BinOp Le),
+                 (string ">=", BinOp Gt)
+               ]),
+      (LAssoc, [ (string "+", BinOp Sum),
+                 (string "-", BinOp Minus)
+               ]),
+      (LAssoc, [ (string "*", BinOp Mul),
+                 (string "/", BinOp Div)
+               ]),
+      (RAssoc, [ (string "^", BinOp Pow) ])
+    ]
+
+primaryForEAst = pDigit
+
 -- Constructs AST for the input expression
 parseExpression :: String -> Either ParseError (EAst Integer)
 parseExpression input =
-  runParserUntilEof (expression undefined undefined) input
+  runParserUntilEof (expression listOfOperatorsForEAst primaryForEAst) input
 
 -- Change the signature if necessary
 -- Calculates the value of the input expression
 executeExpression :: String -> Either ParseError Integer
 executeExpression input =
-  runParserUntilEof (expression undefined undefined) input
+  runParserUntilEof (expression listOfOperatorsForInteger primaryForInteger) input
+
+listOfOperatorsForInteger =
+    [
+      (LAssoc, [ (string "||", \x y -> if x + y > 0 then 1 else 0)]),
+      (RAssoc, [ (string "&&", \x y -> if x * y > 0 then 1 else 0)]),
+      (NAssoc, [ (string "==", \x y -> if x == y then 1 else 0),
+                 (string "!=", \x y -> if x == y then 0 else 1),
+                 (string "<", \x y -> if x < y then 1 else 0),
+                 (string ">", \x y -> if x > y then 1 else 0),
+                 (string "<=", \x y -> if x <= y then 1 else 0),
+                 (string ">=", \x y -> if x >= y then 1 else 0)
+               ]),
+      (LAssoc, [ (string "+", (+)),
+                 (string "-", (-))
+               ]),
+      (LAssoc, [ (string "*", (*)),
+                 (string "/", div)
+               ]),
+      (RAssoc, [ (string "^", (^)) ])
+    ]
+
+primaryForInteger = digitsInt
+
 
 -- parseExpression :: String -> Either ParseError (Stream Char, EAst Integer)
 -- parseExpression input = runParser pStart input
@@ -105,9 +151,6 @@ pPow = do
     y <- pPow
     return $ BinOp Conj x y
     <|> pExp
-
-
-
 
 pExp = do
     string "("
