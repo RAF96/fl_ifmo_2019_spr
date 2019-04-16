@@ -93,10 +93,8 @@ pPow = do
     op <- string "^"
     many_spaces
     y <- pPow
-    return $ BinOp Conj x y
+    return $ BinOp Pow x y
     <|> pExp
-
-
 
 
 pExp = do
