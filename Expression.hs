@@ -110,6 +110,7 @@ pEq = do
     many_spaces
     y <- pPlus
     return $ BinOp op x y
+    <|> pPlus
 
 pEq'' = pEq' <|> pNeq <|> pLe <|> pLe <|> pLt <|> pGe <|> pGt
 pEq' = string "=="  *> pure Eq
