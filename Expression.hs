@@ -44,7 +44,7 @@ listOfOperatorsForEAst =
       (RAssoc, [ (string "^", BinOp Pow) ])
     ]
 
-primaryForEAst = pDigit
+primaryForEAst = pStart
 
 -- Constructs AST for the input expression
 parseExpression :: String -> Either ParseError (EAst Integer)
