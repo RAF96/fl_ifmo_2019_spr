@@ -30,10 +30,10 @@ listOfOperatorsForEAst =
       (RAssoc, [ (string "&&", BinOp Conj)]),
       (NAssoc, [ (string "==", BinOp Eq),
                  (string "!=", BinOp Neq),
-                 (string "<", BinOp Lt),
-                 (string ">", BinOp Gt),
                  (string "<=", BinOp Le),
-                 (string ">=", BinOp Gt)
+                 (string ">=", BinOp Ge),
+                 (string "<", BinOp Lt),
+                 (string ">", BinOp Gt)
                ]),
       (LAssoc, [ (string "+", BinOp Sum),
                  (string "-", BinOp Minus)
@@ -63,10 +63,10 @@ listOfOperatorsForInteger =
       (RAssoc, [ (string "&&", \x y -> if x * y > 0 then 1 else 0)]),
       (NAssoc, [ (string "==", \x y -> if x == y then 1 else 0),
                  (string "!=", \x y -> if x == y then 0 else 1),
-                 (string "<", \x y -> if x < y then 1 else 0),
-                 (string ">", \x y -> if x > y then 1 else 0),
                  (string "<=", \x y -> if x <= y then 1 else 0),
-                 (string ">=", \x y -> if x >= y then 1 else 0)
+                 (string ">=", \x y -> if x >= y then 1 else 0),
+                 (string "<", \x y -> if x < y then 1 else 0),
+                 (string ">", \x y -> if x > y then 1 else 0)
                ]),
       (LAssoc, [ (string "+", (+)),
                  (string "-", (-))
@@ -78,89 +78,6 @@ listOfOperatorsForInteger =
     ]
 
 primaryForInteger = digitsInt
-
-
--- parseExpression :: String -> Either ParseError (Stream Char, EAst Integer)
--- parseExpression input = runParser pStart input
-
-
-pStart :: Parser Char (EAst Integer)
-pStart = pOr
-
-pOr :: Parser Char (EAst Integer)
-pOr = do
-    x <- pAnd
-    y <- many $ many_spaces *> string "||" *> many_spaces *> pAnd
-    let res = foldl (\acc x -> BinOp Disj acc x) x y
-    return $ res
-
-pAnd = do
-    x <- pEq
-    many_spaces
-    op <- string "&&"
-    many_spaces
-    y <- pAnd
-    return $ BinOp Conj x y
-    <|> pEq
-
-pEq = do
-    x <- pPlus
-    many_spaces
-    op <- pEq''
-    many_spaces
-    y <- pPlus
-    return $ BinOp op x y
-    <|> pPlus
-
-pEq'' = pEq' <|> pNeq <|> pLe <|> pLe <|> pLt <|> pGe <|> pGt
-pEq' = string "=="  *> pure Eq
-pNeq = string "!=" *> pure Neq
-pLe = string  "<=" *> pure Le
-pLt = string "<" *> pure Lt
-pGe = string ">=" *> pure Ge
-pGt = string ">" *> pure Gt
-
-
-pPlus = do
-    x <- pMul
-    y <- many $ Prelude.fmap flip (BinOp <$> (many_spaces *> pPlus'')) <*> (many_spaces *> pMul)
-    let res = foldl (\acc x -> x acc) x y
-    return $ res
-
-pPlus'' = pPlus' <|> pMinus
-pPlus' = string "+" *> pure Sum
-pMinus = string "-" *> pure Minus
-
-
-pMul = do
-    x <- pPow
-    y <- many $ Prelude.fmap flip (BinOp <$> (many_spaces *> pMul'')) <*> (many_spaces *> pPow)
-    let res = foldl (\acc x -> x acc) x y
-    return $ res
-
-
-pMul'' = pMul' <|> pDiv
-pMul' = string "*" *> pure Mul
-pDiv = string "/" *> pure Div
-
-
-pPow = do
-    x <- pExp
-    many_spaces
-    op <- string "^"
-    many_spaces
-    y <- pPow
-    return $ BinOp Conj x y
-    <|> pExp
-
-pExp = do
-    string "("
-    many_spaces
-    x <- pStart
-    many_spaces
-    string ")"
-    return x
-    <|> pDigit
 
 pDigit :: Parser Char (EAst Integer)
 pDigit = Primary <$> digitsInt

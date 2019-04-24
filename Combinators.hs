@@ -31,7 +31,6 @@ expression ops primary = foldr (\(assoc, l) acc -> step assoc l acc) primary ops
             let l' = Prelude.fmap (\(parser, op) -> parser *> pure op) l
             let l'' = foldr1 (\parser acc -> parser <|> acc) l'
             second <- many $ Prelude.fmap flip l'' <*> primary
-            -- return second
             return $ foldl (\acc elem -> elem acc) first second
 
         stepRAssoc :: [(Parser str b, a -> a -> a)] -> Parser str a -> Parser str a
