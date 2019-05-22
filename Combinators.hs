@@ -175,6 +175,7 @@ char = token
 space :: Parser Char Char
 space = char ' '
 
+
 digit :: Parser Char Char
 digit = satisfy (isDigit)
 
@@ -202,6 +203,11 @@ many_spaces = do
 many1_spaces :: Parser Char ()
 many1_spaces = do
     res <- some space
+    return ()
+
+end_of_line :: Parser Char ()
+end_of_line = do
+    res <- char '\n'
     return ()
 
 eof :: Parser Char ()

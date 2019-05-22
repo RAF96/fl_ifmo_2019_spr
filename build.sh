@@ -1,2 +1,2 @@
 ./clean.sh
-ghc -O Main.hs
+stack ghc Main.hs

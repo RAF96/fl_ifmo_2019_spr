@@ -26,7 +26,7 @@ data EAst a = BinOp Operator (EAst a) (EAst a)
 
 listOfOperatorsForEAst =
     [
-      (LAssoc, [ (string "||", BinOp Disj)]),
+      (RAssoc, [ (string "||", BinOp Disj)]),
       (RAssoc, [ (string "&&", BinOp Conj)]),
       (NAssoc, [ (string "==", BinOp Eq),
                  (string "!=", BinOp Neq),
@@ -44,22 +44,22 @@ listOfOperatorsForEAst =
       (RAssoc, [ (string "^", BinOp Pow) ])
     ]
 
-primaryForEAst = pDigit
+primaryForEAst = many_spaces *> pDigit <* many_spaces
 
 -- Constructs AST for the input expression
 parseExpression :: String -> Either ParseError (EAst Integer)
 parseExpression input =
-  runParserUntilEof (expression listOfOperatorsForEAst primaryForEAst) input
+  runParserUntilEof ((expression listOfOperatorsForEAst primaryForEAst) <* (end_of_line <|> eof)) input
 
 -- Change the signature if necessary
 -- Calculates the value of the input expression
 executeExpression :: String -> Either ParseError Integer
 executeExpression input =
-  runParserUntilEof (expression listOfOperatorsForInteger primaryForInteger) input
+  runParserUntilEof ((expression listOfOperatorsForInteger primaryForInteger) <* (end_of_line <|> eof)) input
 
 listOfOperatorsForInteger =
     [
-      (LAssoc, [ (string "||", \x y -> if x + y > 0 then 1 else 0)]),
+      (RAssoc, [ (string "||", \x y -> if x + y > 0 then 1 else 0)]),
       (RAssoc, [ (string "&&", \x y -> if x * y > 0 then 1 else 0)]),
       (NAssoc, [ (string "==", \x y -> if x == y then 1 else 0),
                  (string "!=", \x y -> if x == y then 0 else 1),
@@ -77,7 +77,7 @@ listOfOperatorsForInteger =
       (RAssoc, [ (string "^", (^)) ])
     ]
 
-primaryForInteger = digitsInt
+primaryForInteger = many_spaces *> digitsInt <* many_spaces
 
 pDigit :: Parser Char (EAst Integer)
 pDigit = Primary <$> digitsInt
