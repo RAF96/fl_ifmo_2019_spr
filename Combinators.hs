@@ -13,12 +13,29 @@ data Assoc = LAssoc -- left associativity
 -- Binary operators are listed in the order of precedence (from lower to higher)
 -- Binary operators on the same level of precedence have the same associativity
 -- Binary operator is specified with a parser for the operator itself and a semantic function to apply to the operands
+
+getExpressionWithShortConstructor :: Parser str () -> Parser str () -> Parser str () ->
+    [(Assoc, [(Parser str b, a -> a -> a)])] -> Parser str a ->Parser str a
+getExpressionWithShortConstructor left_bracket right_bracket spaces =
+    \ops primary -> expression ops primary left_bracket right_bracket spaces
+
 expression :: [(Assoc, [(Parser str b, a -> a -> a)])] ->
               Parser str a ->
+              Parser str () ->
+              Parser str () ->
+              Parser str () ->
               Parser str a
 --expression ops primary = undefined
-expression ops primary = foldr (\(assoc, l) acc -> step assoc l acc) primary ops
+expression ops primary left_bracket right_bracket spaces =
+    foldr (\(assoc, l) acc -> orBrakets (step assoc l acc))
+          (spaces *> (orBrakets primary)<* spaces)
+          ops
     where
+
+        orBrakets parser = parser <|> ((spaces *> left_bracket) *>
+                                      (expression ops primary left_bracket right_bracket spaces) <*
+                                      (right_bracket <* spaces))
+
         step:: Assoc -> [(Parser str b, a -> a -> a)] -> Parser str a -> Parser str a
         step assoc = case assoc of
             LAssoc -> stepLAssoc

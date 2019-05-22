@@ -24,6 +24,21 @@ data EAst a = BinOp Operator (EAst a) (EAst a)
             | Primary a
 
 
+left_bracket = do
+    _ <- char '('
+    return ()
+
+right_bracket = do
+    _ <- char ')'
+    return ()
+
+spaces = do
+    _ <- many_spaces
+    return ()
+
+expression' = getExpressionWithShortConstructor left_bracket right_bracket spaces
+
+
 listOfOperatorsForEAst =
     [
       (RAssoc, [ (string "||", BinOp Disj)]),
@@ -44,18 +59,18 @@ listOfOperatorsForEAst =
       (RAssoc, [ (string "^", BinOp Pow) ])
     ]
 
-primaryForEAst = many_spaces *> pDigit <* many_spaces
+primaryForEAst = pDigit
 
 -- Constructs AST for the input expression
 parseExpression :: String -> Either ParseError (EAst Integer)
 parseExpression input =
-  runParserUntilEof ((expression listOfOperatorsForEAst primaryForEAst) <* (end_of_line <|> eof)) input
+  runParserUntilEof ((expression' listOfOperatorsForEAst primaryForEAst) <* (end_of_line <|> eof)) input
 
 -- Change the signature if necessary
 -- Calculates the value of the input expression
 executeExpression :: String -> Either ParseError Integer
 executeExpression input =
-  runParserUntilEof ((expression listOfOperatorsForInteger primaryForInteger) <* (end_of_line <|> eof)) input
+  runParserUntilEof ((expression' listOfOperatorsForInteger primaryForInteger) <* (end_of_line <|> eof)) input
 
 listOfOperatorsForInteger =
     [
