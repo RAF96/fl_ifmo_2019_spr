@@ -27,7 +27,7 @@ expression :: [(Assoc, [(Parser str b, a -> a -> a)])] ->
               Parser str a
 --expression ops primary = undefined
 expression ops primary left_bracket right_bracket spaces =
-    foldr (\(assoc, l) acc -> orBrakets (step assoc l acc))
+    foldr (\(assoc, l) acc -> step assoc l acc)
           (spaces *> (orBrakets primary)<* spaces)
           ops
     where
