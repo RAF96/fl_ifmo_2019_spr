@@ -32,11 +32,11 @@ right_bracket = do
     _ <- char ')'
     return ()
 
-spaces = do
-    _ <- many_spaces
+gapes = do
+    _ <- many_gapes
     return ()
 
-expression' = getExpressionWithShortConstructor left_bracket right_bracket spaces
+expression' = getExpressionWithShortConstructor left_bracket right_bracket gapes
 
 
 listOfOperatorsForEAst =

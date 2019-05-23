@@ -78,7 +78,20 @@ runParserUntilEof p inp =
 
 
 
-data ParseError = GroupError [ParseError] | BaseError String Position deriving Show
+data ParseError = GroupError String Position [ParseError] | BaseError String Position
+instance Show ParseError where
+    show (GroupError s p _) = "error message: " ++  s ++ " Position: " ++ (show p)
+    show (BaseError s p) = "error message: " ++  s ++ " Position: " ++ (show p)
+
+
+showAllError :: Either ParseError a -> IO ()
+showAllError (Left x) = putStrLn $ showAllError' x
+showAllError (Right x) = putStrLn $ "Nothing"
+
+showAllError' :: ParseError -> String
+showAllError' g@(GroupError _ _ l_group) = show g ++ "\n" ++ (foldr (\x acc -> acc ++ (showAllError' x) ++ "\n") ""  l_group)
+showAllError' g@(BaseError _ _) = show g
+
 type Position = (Int, Int)
 data Stream token = Stream {streamData::[token], streamPosition::Position} deriving Show
 newtype Parser token ok = Parser { runParserByStream :: Stream token -> Either ParseError (Stream token, ok) }
@@ -157,7 +170,7 @@ p <|> q = Parser $ \s ->
     Right x -> Right x
     Left x -> case runParserByStream q s of
         Right x -> Right x
-        Left y -> Left $ GroupError [x, y]
+        Left y -> Left $ GroupError "Neither from <|> is right." (streamPosition s) [x, y]
 
 seq :: Parser token a -> Parser token b -> Parser token (a, b)
 p `seq` q = Parser $ \s ->
@@ -189,8 +202,10 @@ token letter = satisfy (== letter)
 char :: Char -> Parser Char Char
 char = token
 
-space :: Parser Char Char
-space = char ' '
+space :: Parser Char ()
+space = do
+    res <- char ' '
+    return ()
 
 
 digit :: Parser Char Char
@@ -226,6 +241,14 @@ end_of_line :: Parser Char ()
 end_of_line = do
     res <- char '\n'
     return ()
+
+many_gapes :: Parser Char ()
+many_gapes = do
+    res <- many (end_of_line <|> space)
+    return ()
+
+
+
 
 eof :: Parser Char ()
 eof = Parser $ \stream -> if streamData stream == []
