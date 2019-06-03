@@ -15,11 +15,12 @@ data Assoc = LAssoc -- left associativity
 -- Binary operator is specified with a parser for the operator itself and a semantic function to apply to the operands
 
 getExpressionWithShortConstructor :: Parser str () -> Parser str () -> Parser str () ->
-    [(Assoc, [(Parser str b, a -> a -> a)])] -> Parser str a ->Parser str a
+    [EAstOps str b a] -> Parser str a -> Parser str a
 getExpressionWithShortConstructor left_bracket right_bracket spaces =
     \ops primary -> expression ops primary left_bracket right_bracket spaces
 
-expression :: [(Assoc, [(Parser str b, a -> a -> a)])] ->
+-- expression :: [(Assoc, [(Parser str a, a -> a -> a)])] ->
+expression :: [EAstOps str b a] ->
               Parser str a ->
               Parser str () ->
               Parser str () ->
@@ -27,14 +28,26 @@ expression :: [(Assoc, [(Parser str b, a -> a -> a)])] ->
               Parser str a
 --expression ops primary = undefined
 expression ops primary left_bracket right_bracket spaces =
-    foldr (\(assoc, l) acc -> step assoc l acc)
-          (spaces *> (orBrakets primary)<* spaces)
+    foldr step' --(\(assoc, l) acc -> step' assoc l acc)
+          (orBrakets primary)
           ops
     where
 
         orBrakets parser = parser <|> ((spaces *> left_bracket) *>
                                       (expression ops primary left_bracket right_bracket spaces) <*
                                       (right_bracket <* spaces))
+
+
+
+        step' :: EAstOps str b a -> Parser str a -> Parser str a
+        step' (EAstBinOps (assoc, l)) primary = step assoc l primary
+        step' (EAstUnOps l) primary =  (do
+            let l' = Prelude.fmap (\(parser, op) -> parser *> pure op) l
+            let l'' = foldr1 (\parser acc -> parser <|> acc) l'
+            op <- l''
+            first <- primary
+            return $ op first)
+            <|> primary
 
         step:: Assoc -> [(Parser str b, a -> a -> a)] -> Parser str a -> Parser str a
         step assoc = case assoc of
@@ -211,6 +224,9 @@ space = do
 digit :: Parser Char Char
 digit = satisfy (isDigit)
 
+alpha :: Parser Char Char
+alpha = satisfy (isAlpha)
+
 digitInt :: Parser Char Integer
 digitInt  = toInteger <$> (digitToInt <$> digit)
 
@@ -247,10 +263,14 @@ many_gapes = do
     res <- many (end_of_line <|> space)
     return ()
 
-
-
-
 eof :: Parser Char ()
 eof = Parser $ \stream -> if streamData stream == []
     then Right (stream, ())
     else Left $ eofException $ streamPosition stream
+
+
+data EAstOps err str a = EAstUnOps [(Parser err str, a -> a)] | EAstBinOps (Assoc, [(Parser err str, a -> a -> a)])
+
+binToEAstOps :: (Assoc, [(Parser err str, a -> a -> a)]) -> EAstOps err str a
+binToEAstOps l = EAstBinOps l
+unToEAstOps l = EAstUnOps l
