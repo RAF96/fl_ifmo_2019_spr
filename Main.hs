@@ -10,12 +10,12 @@ main = do
   mapM_
     (\fileName -> do
         input <- readFile fileName
-        putStrLn $ input
-        let a = parseExpression (init $ input)
-        let r = executeExpression (init $ input)
+        let a = parseExpressionOptimized (init $ input)
+        -- let r = executeExpression (init $ input)
         putStrLn $ printf "Parsing %s\n" fileName
+        putStrLn $ input
         putStrLn $ either show show a
-        putStrLn $ either show show r
+        -- putStrLn $ either show show r
         putStrLn ""
     )
     fileNames

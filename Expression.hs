@@ -19,9 +19,9 @@ data Operator = Pow
               | Conj
               | Disj
               | UnMinus
-              | UnNeg
+              | UnNeg deriving (Eq)
 
--- Simplest abstract syntax tree for expressions: only binops are allowed
+
 data EAst a = BinOp Operator (EAst a) (EAst a)
             | UnOp Operator (EAst a)
             | Primary a
@@ -157,4 +157,43 @@ show (BinOp Conj (BinOp Pow (Primary 1) (BinOp Sum (Primary 2) (Primary 3))) (Pr
 | | |_3
 |_4
 -}
+
+
+optimize :: EAst Integer -> EAst Integer
+optimize (Primary a) = Primary a
+optimize (Var str) = Var str
+optimize (UnOp op x) | op == UnMinus, Primary x <- result = Primary (-x)
+                     | op == UnNeg, Primary x <- result = Primary (if x == 0 then 1 else 0)
+                     | otherwise =  UnOp op result
+    where
+        result = optimize x
+optimize (BinOp op l r) | op == Pow, Primary 0 <- result_r = Primary 1 -- x ^ 0 = 1, 0 ^ 0 = 1
+                        | op == Pow, Primary 0 <- result_l = Primary 0 -- 0 ^ x = 0
+
+                        | op == Mul, Primary 0 <- result_l = Primary 0 -- 0 * x = 0
+                        | op == Mul, Primary 0 <- result_r = Primary 0 -- x * 0 = 0
+                        | op == Mul, Primary 1 <- result_l = result_r -- 1 * x = x
+                        | op == Mul, Primary 1 <- result_r = result_l -- x * 1 = x
+
+                        | op == Div, Primary 0 <- result_l = Primary 0 -- 0 / x = 0
+                        | op == Div, Primary 1 <- result_r = result_l -- x / 1 = x
+
+
+                        | op == Sum, Primary 0 <- result_l = result_r -- 0 + x = x
+                        | op == Sum, Primary 0 <- result_r = result_l -- x + 0 = x
+
+                        | op == Minus, Primary 0 <- result_r = result_l -- x - 0 = x
+
+                        | op == Conj, Primary 0 <- result_l = Primary 0 -- 0 && x = 0
+                        | op == Conj, Primary 0 <- result_r = Primary 0 -- x && 0 = 0
+
+                        | op == Disj, Primary 1 <- result_l = Primary 1 -- 1 || x = 1
+                        | op == Disj, Primary 1 <- result_r = Primary 1 -- x || 1 =1
+                        | otherwise = BinOp op result_l result_r
+    where
+        result_l = optimize l
+        result_r = optimize r
+
+parseExpressionOptimized :: String -> Either ParseError (EAst Integer)
+parseExpressionOptimized = Prelude.fmap optimize . parseExpression
 
